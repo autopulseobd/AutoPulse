@@ -1,0 +1,50 @@
+[
+  {
+    "key": "AP-V1-SESSION",
+    "title": "[AutoPulse V1] Connect Check-up and Drive to the standard OBD session",
+    "labels": ["devin-ready"],
+    "body": "Problem: component-level engine results do not establish that both mobile actions use the selected engine. Coordinate with the existing integration writer; do not create a competing implementation.\n\nScope: trace the current Check-up and Drive controls through connection, standard Mode 01, VIN and classic DTC 03/07/0A, report saving, recovery and Stop. Determine the original polling-to-DTC ordering before changing it. Preserve the existing UI timer owner and state identity. No DTC clearing.\n\nAcceptance: exact source and artifact pins; real-entry replay for both actions including healthy zero-DTC and positive saved DTC/VIN inputs; disconnect/Stop tests show zero TX after completed Stop; reports persist available data and distinguish partial results. Treat phone/stand acceptance separately from host tests."
+  },
+  {
+    "key": "AP-V1-CLONE",
+    "title": "[AutoPulse V1] Verify clone-adapter reset and protocol initialization",
+    "labels": ["devin-ready"],
+    "body": "Investigation: identify a reproducible ATZ/ATSP failure from existing low-cost ELM327 traces before changing code. Do not assume every missing prompt or byte is garbage.\n\nScope: existing initialization owner and its callbacks, ordering, timing, parser boundaries and recovery. Do not add speculative sanitizers, sleeps or alternate initialization paths.\n\nAcceptance: preserve exact failing RX/TX input and a healthy CAN neighbour; fix must turn the failing case green without altering the healthy trace or expected oracle. Verify reconnect and Stop cancellation. If no defect reproduces, report NO CHANGE NEEDED with evidence."
+  },
+  {
+    "key": "AP-V1-BLE",
+    "title": "[AutoPulse V1] Verify fragmented BLE notifications and reconnect boundaries",
+    "labels": ["devin-ready"],
+    "body": "Investigation: verify the actual BLE receive owner before adding buffering. BLE notification fragmentation and ISO-TP framing are different layers; preserve their existing ownership.\n\nScope: received notifications through command response assembly, split VIN responses, CR and prompt boundaries, subscription rebind and close races. Do not use cached values or write echoes as received data.\n\nAcceptance: existing fragmented and adjacent-notification fixtures remain green, including no stale first value; a reproduced loss has a frozen FAIL_TO_PASS case and healthy neighbour. Verify no callbacks or TX after completed Stop. No claims about a specific chipset without adapter evidence."
+  },
+  {
+    "key": "AP-V1-PENDING",
+    "title": "[AutoPulse V1] Verify ResponsePending lifecycle on delayed links",
+    "labels": ["devin-ready"],
+    "body": "Investigation: inspect the existing NRC 0x78 owner and replay tests before changing timeouts. Do not label a timeout as a defect without the corresponding command and receive sequence.\n\nScope: repeated pending responses followed by completion, timeout, disconnect and Stop; preserve original callback and queue semantics.\n\nAcceptance: pinned reproduced failing sequence plus healthy no-pending neighbour if a fix is needed; final response delivered once; no leaked callback or TX after completed Stop; unchanged healthy ordering and time policy. OEM workflow work remains deferred until standard V1."
+  },
+  {
+    "key": "AP-V1-COVERAGE",
+    "title": "[AutoPulse V1] Measure adapter-specific sensor coverage and session endurance",
+    "labels": ["devin-ready"],
+    "body": "Scope: measure the actual selected standard-OBD engine through the Check-up and Drive entry points using existing recorded inputs and the adapter stand. Do not request a new live BMW recording.\n\nAcceptance: establish comparable old/new baselines per adapter and source/artifact SHA. Distinguish supported, received, decoded, fresh and saved sensors. Cover the requested 60-second Check-up and five-minute Drive auto-stop with persistence, disconnect and cancellation cases. Record unsupported sensors and any reduced coverage rather than promising 30-50 readings universally. Host/replay and physical evidence are separate results."
+  },
+  {
+    "key": "AP-EN-RELEASE",
+    "title": "[AutoPulse English] Localize the complete user journey and locale fallback",
+    "labels": ["devin-ready"],
+    "body": "Scope: inventory hardcoded visible strings, diagnostics, authentication errors, report text, plurals, dates and permissions before editing. The supplied app_en.arb is a starter dictionary, not complete coverage. Use one localization owner; Russian language preferences select Russian, all others fall back to en_US. Preserve behaviour and error identifiers. Coordinate with the current UI writer and split oversized files mechanically before behavioural edits as required by repository rules.\n\nAcceptance: generated ARB resources have matching keys/placeholders; locale oracles cover ru_RU, ru_BY, en_US, de_DE and a preference list with Russian. Widget checks cover connection, both diagnostic modes, results, history, profile/auth and errors. No residual Russian UI on the English journey. Existing release gate passes."
+  },
+  {
+    "key": "AP-ANDROID-RELEASE",
+    "title": "[AutoPulse Android] Produce traceable signed App Bundle and APK",
+    "labels": ["devin-ready"],
+    "body": "Prerequisites: English journey accepted, current source frozen and clean, original signing configuration restored by the owner. Never replace the upload key or sign a store release with a debug key.\n\nScope: extend the existing release build owner for the actual v3 flavor and lib/main_v3.dart entry point; include APP_SOURCE_SHA in both outputs.\n\nAcceptance: existing release gate passes once on the frozen source; signed AAB and APK build successfully; certificate fingerprint matches android/signing_metadata.json; record hashes, source SHA, version and validation results. Store upload/release is a separate explicitly authorized action. A successful build alone is not hardware or release acceptance."
+  },
+  {
+    "key": "AP-OEM-AFTER-V1",
+    "title": "[AutoPulse post-V1] Audit existing OEM catalog integration before expansion",
+    "labels": ["post-v1"],
+    "body": "Deferred: the current product plan freezes OEM work until standard-OBD V1 acceptance. This issue is not ready for execution.\n\nWhen unblocked: inspect existing BMW/Mini, Hyundai/Kia, Toyota/Lexus, Ford and Mitsubishi bindings rather than adding a duplicate factory. Preserve identical(driver.scan, scan), constructor side effects such as 7D2 and session header ordering. Establish completeness of translation resources using source evidence.\n\nAcceptance: same-entry positive VIN/DTC and healthy-zero cases using real saved input, correct state identity and constructor side effects, full required translations and independent review on the exact source. Do not infer physical multi-brand compatibility from synthetic fixtures."
+  }
+]

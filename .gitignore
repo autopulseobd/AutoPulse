@@ -1,0 +1,12 @@
+.env
+.env.*
+*.pem
+*.key
+*.keystore
+*.jks
+credentials/
+private/
+project-data/
+__pycache__/
+*.pyc
+.DS_Store

@@ -1,0 +1,27 @@
+#!/bin/sh
+# Oracle guard template (project-playbook). Copy to tool/hooks/commit-msg next to pre-commit.
+# Changed or removed test assertions need a line in the commit message:
+#   ORACLE-CHANGE: expectations unchanged (<rename>)  - as many checks as before, none weakened
+#   ORACLE-CHANGE: <reason>; owner approved <date>    - fewer checks, a skipped test or a new expectation
+# Adjust TEST_PATHS, ASSERT and SKIPS to the project's language. Comment lines are ignored.
+set -eu
+TEST_PATHS='(^|/)(test|tests|spec)/|_test\.|\.test\.|\.spec\.|(^|/)test_[^/]*$'
+ASSERT='expect\(|assert|toEqual|toBe\(|XCTAssert|require\.'
+SKIPS='skip:|\.skip\(|(^|[^a-zA-Z_])(xit|xdescribe)\(|@pytest\.mark\.(skip|xfail)|@unittest\.skip|pytest\.skip\(|XCTSkip'
+
+diff=$(git -c core.quotePath=false diff --cached --name-only --diff-filter=MD | grep -E "$TEST_PATHS" \
+  | while IFS= read -r path; do git diff --cached --unified=0 -- "$path"; done \
+  | grep -vE '^[-+][[:space:]]*(//|#)' || true)
+removed=$(printf '%s\n' "$diff" | grep -E '^-[^-]' | grep -cE "$ASSERT" || true)
+added=$(printf '%s\n' "$diff" | grep -E '^\+[^+]' | grep -cE "$ASSERT" || true)
+skipped=$(printf '%s\n' "$diff" | grep -E '^\+[^+]' | grep -cE "$SKIPS" || true)
+
+if [ "$removed" -gt "$added" ] || [ "$skipped" -gt 0 ]; then
+  if ! grep -qE '^ORACLE-CHANGE:.*owner approved' "$1"; then
+    echo "STOP tests lose checks ($removed removed, $added added) or get skipped ($skipped): restore them, or add 'ORACLE-CHANGE: <reason>; owner approved <date>'" >&2
+    exit 1
+  fi
+elif [ "$removed" -gt 0 ] && ! grep -q '^ORACLE-CHANGE:' "$1"; then
+  echo "STOP $removed test assertion line(s) changed: add 'ORACLE-CHANGE: expectations unchanged' for a pure rename, or 'ORACLE-CHANGE: <reason>; owner approved <date>' when an expectation changes" >&2
+  exit 1
+fi

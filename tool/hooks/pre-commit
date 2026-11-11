@@ -1,0 +1,60 @@
+#!/bin/sh
+# Commit gate template (project-playbook). Copy to tool/hooks/pre-commit, make it executable and
+# enable once per clone: git config core.hooksPath tool/hooks. Never bypass with --no-verify.
+set -eu
+
+fail=0
+list=$(mktemp "${TMPDIR:-/tmp}/gate.XXXXXX")
+trap 'rm -f "$list"' EXIT
+
+# 1. Code and living docs over 32 KB: Codex shows at most 40 KB of command output and cuts the
+#    middle. Data, media, lock and generated files are not read whole and are skipped, and so are
+#    research/ and archive/, which agents read by headings. Adjust SOURCES to the project's languages.
+#    Sizes come from the index, i.e. exactly what is being committed. Big files already in HEAD can
+#    be listed in tool/hooks/large-files.txt (one path per line); a new file never passes that way.
+LARGE=tool/hooks/large-files.txt
+SOURCES='\.(dart|py|swift|kt|java|ts|tsx|js|jsx|go|rs|c|h|cpp|m|sh|md)$'
+SKIP='(^|/)(research|archive|vendor|third_party|generated)/|\.min\.js$|\.(g|freezed)\.dart$'
+git -c core.quotePath=false diff --cached --name-only --diff-filter=ACMR | grep -E "$SOURCES" | grep -vE "$SKIP" > "$list" || true
+while IFS= read -r path; do
+  if [ -f "$LARGE" ] && grep -qxF -- "$path" "$LARGE" && git cat-file -e "HEAD:$path" 2>/dev/null; then continue; fi
+  size=$(git cat-file -s ":$path")
+  if [ "$size" -gt 32000 ]; then
+    echo "STOP $path: $size bytes > 32000 - split it by responsibility in a separate commit" >&2
+    fail=1
+  fi
+done < "$list"
+
+# 2. CLAUDE.md or CLAUDE.local.md switch off AGENTS.md in Claude Code.
+if git -c core.quotePath=false ls-files --cached | grep -qE '(^|/)CLAUDE(\.local)?\.md$'; then
+  echo "STOP CLAUDE.md in the repository: keep project rules in AGENTS.md" >&2
+  fail=1
+fi
+
+# 3. A copy next to its original is a parallel path: a_v2.py, a_old.py, a.py.bak, a.py.bak_fix_0424.
+#    Only when the original is tracked, so names like whats_new.dart pass.
+git -c core.quotePath=false diff --cached --name-only --diff-filter=A > "$list"
+while IFS= read -r path; do
+  orig=$(printf '%s\n' "$path" | sed -E 's/_(v[0-9]+|old|new)(\.[^/.]+)$/\2/; s/\.(bak|backup|orig)([._-][^/]*)?$//')
+  if [ "$orig" != "$path" ] && git cat-file -e ":$orig" 2>/dev/null; then
+    echo "STOP $path copies $orig: change the original and delete the copy" >&2
+    fail=1
+  fi
+done < "$list"
+
+[ "$fail" -eq 0 ] || exit 1
+
+# 4. Project checks: replace with the real commands (format, analyzer, tests). They run on the
+#    working tree, so unstaged edits in the same paths take part in the run: say so.
+# if git diff --cached --name-only | grep -qE '^(lib|src|test)/'; then
+#   [ -z "$(git diff --name-only -- lib src test)" ] || echo 'WARN unstaged changes are part of this test run' >&2
+#   <format check>
+#   <analyzer>
+#   <tests>
+# fi
+
+# Documentation and issue-authoring checks; the issue script is dry-run by default.
+git diff --cached --check
+bash -n create_github_issues.sh
+python3 -c "import ast; from pathlib import Path; ast.parse(Path('create_github_issues.py').read_text())"
+python3 create_github_issues.py --repo autopulseobd/AutoPulse >/dev/null
